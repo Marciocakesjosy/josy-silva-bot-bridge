@@ -9,6 +9,9 @@
     "check": "node --check server.js && node --check quote-engine.js",
     "tunnel": "npx wrangler tunnel quick-start http://127.0.0.1:5173"
   },
+  "dependencies": {
+    "sharp": "^0.34.5"
+  },
   "engines": {
     "node": ">=18"
   }

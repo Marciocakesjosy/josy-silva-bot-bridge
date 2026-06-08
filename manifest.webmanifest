@@ -1,0 +1,25 @@
+{
+  "name": "Cakes Josy Silva - Agendamento",
+  "short_name": "Cakes Josy",
+  "description": "Aplicacao de atendimento e orcamento de pedidos da Cakes Josy Silva.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#fff5f0",
+  "theme_color": "#7e2148",
+  "icons": [
+    {
+      "src": "assets/logo-cakes-josy-silva-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/logo-cakes-josy-silva-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

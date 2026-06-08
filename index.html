@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#7e2148" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Cakes Josy Silva" />
+    <title>Cakes Josy Silva - Agendamento</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/logo-cakes-josy-silva-192.png" />
+    <link rel="apple-touch-icon" href="assets/logo-cakes-josy-silva-192.png" />
+    <link rel="stylesheet" href="app.css?v=33" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div>
+            <p>Cakes Josy Silva</p>
+            <h1>Agendamento de pedidos</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost-button" id="resume-order-button" type="button">Continuar</button>
+          <button class="ghost-button" id="history-button" type="button">Histórico</button>
+          <button class="ghost-button danger-button" id="reset-orders-button" type="button">Zerar pedidos</button>
+          <button class="ghost-button" id="new-order-button" type="button">Novo pedido</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <section class="wizard-panel" aria-labelledby="step-title">
+          <div class="progress">
+            <div class="progress-track">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <span id="progress-label">Passo 1 de 8</span>
+          </div>
+
+          <div class="step-heading">
+            <p id="step-kicker">Atendimento no balcão</p>
+            <h2 id="step-title">Escolha a massa do bolo</h2>
+            <p id="step-description">Selecione a base principal do pedido.</p>
+          </div>
+
+          <div id="step-content" class="step-content"></div>
+
+          <div class="navigation">
+            <button class="ghost-button" id="back-button" type="button">Voltar</button>
+            <button class="primary-button" id="next-button" type="button">Seguinte</button>
+          </div>
+        </section>
+
+        <aside class="quote-panel" aria-labelledby="quote-title">
+          <div class="quote-header">
+            <p>Orçamento atual</p>
+            <h2 id="quote-title">Resumo do pedido</h2>
+          </div>
+          <div id="live-summary" class="live-summary"></div>
+          <div class="total-row">
+            <span>Total estimado</span>
+            <strong id="live-total">0,00 €</strong>
+          </div>
+        </aside>
+      </section>
+
+      <section id="print-area" class="print-area" aria-label="Pedido para imprimir"></section>
+    </main>
+
+    <script src="app.js?v=35"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("sw.js");
+        });
+      }
+    </script>
+  </body>
+</html>

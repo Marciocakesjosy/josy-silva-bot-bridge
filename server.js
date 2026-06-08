@@ -743,7 +743,20 @@ function attachReceiptToReply(result, baseUrl) {
   const receiptId = rememberReceipt(quotePayload);
   const receiptUrl = `${baseUrl}/api/receipts/${receiptId}`;
   const receiptImageUrl = `${baseUrl}/api/receipts/${receiptId}/image.png`;
-  const appendedMessage = `${result.message}\n\nTalao do cliente (imagem):\n${receiptImageUrl}\n\nTalao do cliente (pagina):\n${receiptUrl}`;
+  const appendedMessage =
+    result.status === "quoted"
+      ? [
+          "Segue o talao do cliente em imagem:",
+          receiptImageUrl,
+          "",
+          "Se precisar da versao de pagina para imprimir:",
+          receiptUrl,
+          "",
+          "Importante:",
+          "- Este valor e um orcamento estimado",
+          "- A confirmacao final depende da loja",
+        ].join("\n")
+      : `${result.message}\n\nTalao do cliente (imagem):\n${receiptImageUrl}\n\nTalao do cliente (pagina):\n${receiptUrl}`;
 
   return {
     ...result,

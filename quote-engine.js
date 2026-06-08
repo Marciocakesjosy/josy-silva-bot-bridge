@@ -770,6 +770,8 @@ function extractFromText(text, context = {}) {
   const firstFilling = fillingOptions[0];
   const secondFilling = fillingOptions[1];
   const fruit =
+    (containsWord(/\bsem fruta\b/) && "sem-fruta") ||
+    (containsWord(/\bsem frutas\b/) && "sem-fruta") ||
     (containsWord(/\bfrutos vermelhos\b/) && "frutos-vermelhos") ||
     (containsWord(/\bmorangos?\b/) && "morango") ||
     (normalized.includes("ananas") && "ananas") ||

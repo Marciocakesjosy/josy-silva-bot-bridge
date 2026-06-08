@@ -63,6 +63,7 @@ Ela:
 - responde FAQ rapida quando a mensagem for simples
 - responde listas prontas quando o cliente pedir recheios, kits, doces ou salgados
 - entra em fluxo de orcamento quando a mensagem for um pedido
+- quando o orcamento fica completo, devolve tambem um link de talao do cliente em uma via
 
 Exemplo de body:
 
@@ -74,6 +75,10 @@ Exemplo de body:
 
 ### `POST /api/botninja/webhook`
 Recebe um payload do Bot Ninja, tenta extrair telefone e mensagem, gera a resposta e opcionalmente pode reenviar ao Bot Ninja.
+
+### `GET /api/receipts/:id`
+Abre um talao do cliente em uma via, pronto para visualizar ou imprimir.
+Esse link pode ser enviado no WhatsApp junto com o orcamento.
 
 ### `POST /api/botninja/send`
 Envia uma mensagem ao Bot Ninja por API.
@@ -119,6 +124,13 @@ POST /api/assistant/reply
 
 ```text
 GET /api/botninja/events
+```
+
+4. Para orcamentos completos, a resposta da ponte ja pode incluir:
+
+```text
+Talao do cliente:
+https://SEU-ENDERECO/api/receipts/ID_DO_TALAO
 ```
 
 ## Observacao importante

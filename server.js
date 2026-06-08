@@ -198,22 +198,65 @@ function findFirstString(value, keysToMatch) {
 }
 
 function extractIncomingMessage(payload, rawBody) {
+  const conversation = payload.conversa && typeof payload.conversa === "object" ? payload.conversa : null;
+  const descriptiveMessage =
+    payload.desc_ultima_mensagem ||
+    payload.ultima_mensagem ||
+    conversation?.desc_ultima_mensagem ||
+    conversation?.ultima_mensagem ||
+    null;
+
+  if (descriptiveMessage) {
+    return String(descriptiveMessage)
+      .replace(/^\*[^*]+\*:\s*/u, "")
+      .trim();
+  }
+
   return (
     findFirstString(payload, ["mensagem", "message", "body", "texto", "text", "content"]) ||
     (typeof rawBody === "string" && rawBody.trim() ? rawBody.trim() : null)
   );
 }
 
+function normalizePhoneNumber(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits || null;
+}
+
 function extractIncomingPhone(payload) {
-  return findFirstString(payload, [
-    "telefone_cliente",
-    "telefone_contato",
-    "telefone",
-    "customerphone",
-    "phone",
-    "whatsapp",
-    "from",
-  ]);
+  const conversation = payload.conversa && typeof payload.conversa === "object" ? payload.conversa : null;
+  const rawPhone =
+    payload.customerPhone ||
+    payload.recipientPhone ||
+    payload.telefone_cliente ||
+    payload.telefone_destinatario ||
+    conversation?.id_cliente ||
+    conversation?.origem ||
+    payload.origem ||
+    findFirstString(payload, [
+      "telefone_cliente",
+      "telefone_contato",
+      "telefone",
+      "customerphone",
+      "phone",
+      "whatsapp",
+      "from",
+    ]);
+
+  return normalizePhoneNumber(rawPhone);
+}
+
+function extractMessageSource(payload) {
+  const conversation = payload.conversa && typeof payload.conversa === "object" ? payload.conversa : null;
+  return String(
+    payload.origem_ultima_mensagem ||
+      conversation?.origem_ultima_mensagem ||
+      payload.source ||
+      payload.origem ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
 }
 
 function buildCatalogPayload() {
@@ -568,15 +611,21 @@ async function handleBotNinjaWebhook(request, response) {
   const { parsed, raw } = await parseRequestBody(request);
   const payload = parsed && typeof parsed === "object" ? parsed : {};
   const messageText = extractIncomingMessage(payload, raw);
-  const customerPhone =
-    payload.customerPhone ||
-    payload.recipientPhone ||
-    payload.telefone_cliente ||
-    payload.telefone_destinatario ||
-    extractIncomingPhone(payload);
+  const customerPhone = extractIncomingPhone(payload);
+  const messageSource = extractMessageSource(payload);
+  const isBotMessage = messageSource === "bot";
 
   const context = payload.context && typeof payload.context === "object" ? payload.context : {};
-  const result = messageText ? buildAssistantReply(messageText, context) : null;
+  const result =
+    messageText && !isBotMessage
+      ? buildAssistantReply(messageText, context)
+      : {
+          ok: true,
+          status: isBotMessage ? "ignored_bot_message" : "ignored_empty_message",
+          message: isBotMessage
+            ? "Evento ignorado porque a ultima mensagem foi enviada pelo proprio bot."
+            : "Evento recebido sem mensagem utilizavel.",
+        };
   const autoReply =
     payload.autoReply !== undefined
       ? Boolean(payload.autoReply)
@@ -585,7 +634,7 @@ async function handleBotNinjaWebhook(request, response) {
   let sendResult = null;
   let sendError = null;
 
-  if (autoReply && result?.message && customerPhone) {
+  if (autoReply && result?.message && customerPhone && !isBotMessage) {
     try {
       sendResult = await sendBotNinjaMessage({
         token: payload.token || process.env.BOT_NINJA_TOKEN,
@@ -611,6 +660,8 @@ async function handleBotNinjaWebhook(request, response) {
     extracted: {
       customerPhone,
       messageText,
+      messageSource,
+      isBotMessage,
     },
     autoReply,
     sendError,
@@ -622,6 +673,8 @@ async function handleBotNinjaWebhook(request, response) {
     extracted: {
       customerPhone,
       messageText,
+      messageSource,
+      isBotMessage,
     },
     result,
     sendResult,

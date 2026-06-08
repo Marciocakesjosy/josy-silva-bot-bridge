@@ -27,6 +27,16 @@ const storeInfo = {
   instagram: "https://www.instagram.com/cakesjosysilva/",
 };
 
+let sharpModule = null;
+
+function getSharp() {
+  if (!sharpModule) {
+    sharpModule = require("sharp");
+  }
+
+  return sharpModule;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -732,7 +742,7 @@ function attachReceiptToReply(result, baseUrl) {
 
   const receiptId = rememberReceipt(quotePayload);
   const receiptUrl = `${baseUrl}/api/receipts/${receiptId}`;
-  const receiptImageUrl = `${baseUrl}/api/receipts/${receiptId}/image.svg`;
+  const receiptImageUrl = `${baseUrl}/api/receipts/${receiptId}/image.png`;
   const appendedMessage = `${result.message}\n\nTalao do cliente (imagem):\n${receiptImageUrl}\n\nTalao do cliente (pagina):\n${receiptUrl}`;
 
   return {
@@ -1260,12 +1270,15 @@ const server = http.createServer(async (request, response) => {
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/api/receipts/")) {
-      const imageSuffix = "/image.svg";
-      const isImageRequest = url.pathname.endsWith(imageSuffix);
+      const pngSuffix = "/image.png";
+      const svgSuffix = "/image.svg";
+      const isPngRequest = url.pathname.endsWith(pngSuffix);
+      const isSvgRequest = url.pathname.endsWith(svgSuffix);
       const receiptId = decodeURIComponent(
         url.pathname
           .replace("/api/receipts/", "")
-          .replace(imageSuffix, ""),
+          .replace(pngSuffix, "")
+          .replace(svgSuffix, ""),
       );
       const receipt = recentReceipts.get(receiptId);
 
@@ -1274,7 +1287,20 @@ const server = http.createServer(async (request, response) => {
         return;
       }
 
-      if (isImageRequest) {
+      if (isPngRequest) {
+        if (!receipt.pngBuffer) {
+          receipt.pngBuffer = await getSharp()(Buffer.from(receipt.svg, "utf8")).png().toBuffer();
+        }
+
+        response.writeHead(200, {
+          "Content-Type": "image/png",
+          "Cache-Control": "no-store",
+        });
+        response.end(receipt.pngBuffer);
+        return;
+      }
+
+      if (isSvgRequest) {
         response.writeHead(200, {
           "Content-Type": "image/svg+xml; charset=utf-8",
           "Cache-Control": "no-store",

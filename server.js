@@ -18,6 +18,8 @@ const recentBotEvents = [];
 const maxRecentBotEvents = 25;
 const recentReceipts = new Map();
 const maxRecentReceipts = 100;
+const recentConversationContexts = new Map();
+const maxRecentConversationContexts = 200;
 const storeInfo = {
   name: "Cakes Josy Silva",
   address: "Rua Antonio Feijo, Nº 30 - Loja C, 2725-223 Algueirao-Mem Martins",
@@ -177,6 +179,26 @@ function rememberBotEvent(event) {
   }
 }
 
+function rememberConversationContext(key, context) {
+  if (!key || !context || typeof context !== "object") {
+    return;
+  }
+
+  recentConversationContexts.set(key, {
+    savedAt: new Date().toISOString(),
+    context,
+  });
+
+  while (recentConversationContexts.size > maxRecentConversationContexts) {
+    const firstKey = recentConversationContexts.keys().next().value;
+    recentConversationContexts.delete(firstKey);
+  }
+}
+
+function getConversationContext(key) {
+  return key ? recentConversationContexts.get(key)?.context || {} : {};
+}
+
 function findFirstString(value, keysToMatch) {
   if (!value) {
     return null;
@@ -220,11 +242,18 @@ function findFirstString(value, keysToMatch) {
 
 function extractIncomingMessage(payload, rawBody) {
   const conversation = payload.conversa && typeof payload.conversa === "object" ? payload.conversa : null;
+  const messageObject = payload.mensagem && typeof payload.mensagem === "object" ? payload.mensagem : null;
   const descriptiveMessage =
     payload.desc_ultima_mensagem ||
     payload.ultima_mensagem ||
     conversation?.desc_ultima_mensagem ||
     conversation?.ultima_mensagem ||
+    messageObject?.mensagem ||
+    messageObject?.message ||
+    messageObject?.texto ||
+    payload.message?.message ||
+    payload.message?.text ||
+    payload.message?.texto ||
     null;
 
   if (descriptiveMessage) {
@@ -278,6 +307,57 @@ function extractMessageSource(payload) {
   )
     .trim()
     .toLowerCase();
+}
+
+function extractConversationKey(payload, customerPhone) {
+  const conversation =
+    payload.conversa && typeof payload.conversa === "object" ? payload.conversa : null;
+
+  return (
+    payload.conversaId ||
+    payload.conversationId ||
+    conversation?.conversa_id ||
+    conversation?.id ||
+    customerPhone ||
+    null
+  );
+}
+
+function quoteRequestToContext(request = {}) {
+  return {
+    type: request.type || "",
+    date: request.date || "",
+    time: request.time || "",
+    customerName: request.customerName || "",
+    customerPhone: request.customerPhone || "",
+    notes: request.notes || "",
+    people: request.people || "",
+    weightKg: request.weight?.kg || "",
+    mass: request.mass?.id || "",
+    fillingCategory: request.fillingCategory?.id || "",
+    fillingFlavor: request.fillingOption?.id || "",
+    secondFillingFlavor: request.secondFillingOption?.id || "",
+    fruit: request.fruit?.id || "",
+    decoration: request.decoration?.id || "",
+    format: request.format?.id || "",
+    kit: request.kit?.id || "",
+    kitFillingMode: request.kitFillingMode || "",
+    kitFillingFlavor: request.kitFillingOption?.id || "",
+    savories: Array.isArray(request.savories)
+      ? request.savories.map((item) => ({ id: item.id, quantity: item.quantity || "" }))
+      : [],
+    sweets: Array.isArray(request.sweets)
+      ? request.sweets.map((item) => ({ id: item.id, quantity: item.quantity || "" }))
+      : [],
+    products: Array.isArray(request.products)
+      ? request.products.map((item) => ({
+          id: item.id,
+          quantity: item.quantity || "",
+          option: item.option || "",
+          secondaryOption: item.secondaryOption || "",
+        }))
+      : [],
+  };
 }
 
 function buildCatalogPayload() {
@@ -809,10 +889,24 @@ function isLikelyQuoteRequest(normalized) {
   return hasProductIntent && hasOrderDetails;
 }
 
-function buildQuickReply(messageText) {
+function hasActiveQuoteContext(context = {}) {
+  return Boolean(
+    context.type ||
+      context.people ||
+      context.weightKg ||
+      context.date ||
+      context.mass ||
+      context.fillingCategory ||
+      context.fillingFlavor ||
+      context.kit,
+  );
+}
+
+function buildQuickReply(messageText, context = {}) {
   const normalized = normalizeMessageText(messageText);
   const catalogLists = buildCatalogLists();
   const quoteIntent = isLikelyQuoteRequest(normalized);
+  const activeQuoteContext = hasActiveQuoteContext(context);
   const explicitListRequest = matchesAny(normalized, [
     /\blista\b/,
     /\bquais\b/,
@@ -826,14 +920,14 @@ function buildQuickReply(messageText) {
     return null;
   }
 
-  if (!quoteIntent && matchesAny(normalized, [/\brecheio\b/, /\brecheios\b/, /\bsabores\b/])) {
+  if (!quoteIntent && !activeQuoteContext && matchesAny(normalized, [/\brecheio\b/, /\brecheios\b/, /\bsabores\b/])) {
     return {
       kind: "catalog_fillings",
       message: `${catalogLists.fillings}\n\nSe quiser, tambem posso ajudar a montar o seu orcamento.`,
     };
   }
 
-  if (!quoteIntent && matchesAny(normalized, [/\bkit\b/, /\bkits\b/])) {
+  if (!quoteIntent && !activeQuoteContext && matchesAny(normalized, [/\bkit\b/, /\bkits\b/])) {
     return {
       kind: "catalog_kits",
       message: `${catalogLists.kits}\n\nSe quiser, diga a data, a massa e o recheio para eu montar o valor estimado.`,
@@ -842,6 +936,7 @@ function buildQuickReply(messageText) {
 
   if (
     !quoteIntent &&
+    !activeQuoteContext &&
     (explicitListRequest || matchesAny(normalized, [/\bdoces\b/, /\bbrigadeiros?\b/]))
   ) {
     return {
@@ -852,6 +947,7 @@ function buildQuickReply(messageText) {
 
   if (
     !quoteIntent &&
+    !activeQuoteContext &&
     (explicitListRequest || matchesAny(normalized, [/\bsalgado\b/, /\bsalgados\b/, /\bempada\b/, /\bcoxinha\b/]))
   ) {
     return {
@@ -959,7 +1055,7 @@ function buildQuickReply(messageText) {
 }
 
 function buildAssistantReply(messageText, context = {}) {
-  const quickReply = buildQuickReply(messageText);
+  const quickReply = buildQuickReply(messageText, context);
   if (quickReply) {
     return {
       ok: true,
@@ -1145,18 +1241,26 @@ async function handleBotNinjaWebhook(request, response) {
   const payload = parsed && typeof parsed === "object" ? parsed : {};
   const messageText = extractIncomingMessage(payload, raw);
   const customerPhone = extractIncomingPhone(payload);
+  const conversationKey = extractConversationKey(payload, customerPhone);
   const messageSource = extractMessageSource(payload);
-  const isBotMessage = messageSource === "bot";
+  const isBotMessage = ["bot", "atendente", "assistant", "system"].includes(messageSource);
 
-  const context = payload.context && typeof payload.context === "object" ? payload.context : {};
+  const payloadContext =
+    payload.context && typeof payload.context === "object" ? payload.context : {};
+  const storedContext = getConversationContext(conversationKey);
+  const mergedContext = {
+    ...storedContext,
+    ...payloadContext,
+    customerPhone: payloadContext.customerPhone || storedContext.customerPhone || customerPhone || "",
+  };
   const result =
     messageText && !isBotMessage
-      ? attachReceiptToReply(buildAssistantReply(messageText, context), buildBaseUrl(request))
+      ? attachReceiptToReply(buildAssistantReply(messageText, mergedContext), buildBaseUrl(request))
       : {
           ok: true,
           status: isBotMessage ? "ignored_bot_message" : "ignored_empty_message",
           message: isBotMessage
-            ? "Evento ignorado porque a ultima mensagem foi enviada pelo proprio bot."
+            ? "Evento ignorado porque a ultima mensagem foi enviada pelo bot/atendente."
             : "Evento recebido sem mensagem utilizavel.",
         };
   const autoReply =
@@ -1187,14 +1291,25 @@ async function handleBotNinjaWebhook(request, response) {
     }
   }
 
+  if (!isBotMessage && result?.quote?.request) {
+    rememberConversationContext(conversationKey, quoteRequestToContext(result.quote.request));
+  }
+
   rememberBotEvent({
     path: "/api/botninja/webhook",
     payload,
     extracted: {
+      conversationKey,
       customerPhone,
       messageText,
       messageSource,
       isBotMessage,
+    },
+    mergedContext,
+    resultPreview: {
+      status: result?.status || "",
+      message: result?.message || "",
+      receiptImageUrl: result?.receipt?.imageUrl || "",
     },
     autoReply,
     sendError,

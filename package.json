@@ -10,6 +10,7 @@
     "tunnel": "npx wrangler tunnel quick-start http://127.0.0.1:5173"
   },
   "dependencies": {
+    "detect-libc": "^2.1.2",
     "sharp": "^0.34.5"
   },
   "engines": {
